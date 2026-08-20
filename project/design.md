@@ -137,8 +137,6 @@ precondiciones, efectos, costo. Toda acción del mundo exige además
 
 Puede usar una tabla:
 
-```text
-```markdown
 | Acción | Precondiciones | Efectos | Costo |
 |---|---|---|---|
 | `MOVER(destino)` | Existe un corredor desde la posición actual hasta `destino`. Si el corredor tiene una puerta, esta debe estar abierta. | La `posición` cambia a la zona destino y se descuenta el costo de la batería. | Costo del corredor utilizado. |
@@ -148,7 +146,6 @@ Puede usar una tabla:
 | `REPARAR_PANEL(panel)` | El robot está en la zona del panel, el panel todavía no está reparado y el `inventario` contiene la herramienta y el material requeridos. | El panel se agrega a `paneles_reparados`, el material utilizado se elimina del inventario y se descuenta el costo de la batería. La herramienta permanece en el inventario. | `action_costs.interact`. |
 | `ACTIVAR_ESTACION(estacion)` | El robot está en la zona de la estación, esta todavía no está `ONLINE` y se cumplen sus dependencias. | La estación se agrega a `estaciones_online` y se descuenta el costo de la batería. | `action_costs.interact`. |
 | `RECARGAR` | El robot está en una zona con punto de recarga, la batería no está llena y tiene batería suficiente para pagar el costo. | Primero se paga el costo y después la batería se restaura hasta `battery_max`. | `action_costs.recharge`. |
-```
 
 
 ### `Applicable` interno vs legalidad del contrato
