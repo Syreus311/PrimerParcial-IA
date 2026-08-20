@@ -9,7 +9,8 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from demo_plan import build_demo_plan
+#from demo_plan import build_demo_plan
+from agent import solve_scenario
 
 app = FastAPI(title="Emergency Control API", version="1.0.0")
 
@@ -47,4 +48,5 @@ def solve(scenario: dict[str, Any]) -> dict[str, Any]:
     must remain: solution_found, total_cost, steps[{op, cost, ...}].
     """
     data = scenario if scenario else _load_default_scenario()
-    return build_demo_plan(data)
+    #return build_demo_plan(data)
+    return solve_scenario(data)
