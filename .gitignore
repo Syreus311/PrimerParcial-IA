@@ -1,0 +1,22 @@
+# Material de clase — no forma parte de la entrega
+DOCS/
+
+# Sistema
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Entorno local
+.env
+.env.*
+
+# Dependencias y artefactos de construcción
+node_modules/
+dist/
+build/
+out/
+coverage/
+*.log
+.venv/
+__pycache__/
+*.pyc
