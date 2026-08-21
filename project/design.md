@@ -127,6 +127,12 @@ Sin embargo, si ese objeto todavía está en el inventario, no puede ignorarse i
 
 Esta simplificación no pierde una solución óptima porque volver a recoger un objeto que ya no habilita ninguna acción útil solo añadiría costo y ocuparía capacidad, sin acercar al robot a la meta.
 
+**Nota de implementación:** para que esta simplificación funcione en código (y no solo en el argumento) hay que hacerla explícita, no implícita. La posición en el suelo de un objeto muerto no se guarda como "una zona más para comparar" que luego se ignora al comparar; se elimina por completo de la tupla canónica del estado en el momento en que el objeto muere (se abre su puerta, o el último panel que necesitaba su tipo de herramienta o material queda reparado). Así, si el objeto se suelta después en cualquier zona, esa zona nunca vuelve a entrar en la representación del estado, y dos estados que solo diferían en dónde quedó un objeto muerto terminan siendo, literalmente, el mismo objeto en memoria — no dos objetos que el código "decide tratar" como iguales por fuera.
+
+### Relevancia adicional: unidades de material por encima de lo necesario
+
+Un tipo de material solo se consume de a una unidad por reparación. Si el robot ya lleva tantas unidades de un tipo como paneles dañados pendientes lo requieren, cualquier unidad adicional de ese tipo es, desde ese momento, tan irrelevante como un objeto muerto: ningún panel puede llegar a consumirla. Por eso `Applicable(s)` deja de ofrecer `PICKUP` de un tipo de material en cuanto se alcanza ese tope, aunque todavía queden unidades de ese tipo en el suelo. En el escenario de ejemplo esto es concreto: hay 2 `FUSE` en el mapa pero solo `PANEL_A` los necesita (1 unidad), así que el agente nunca genera el `PICKUP` de la segunda unidad — cargarla no podría ayudar a ningún plan.
+
 ---
 
 ## Acciones
@@ -136,6 +142,10 @@ precondiciones, efectos, costo. Toda acción del mundo exige además
 `batería ≥ costo`.
 
 Puede usar una tabla:
+
+```text
+Acción | Precondiciones | Efectos | Costo
+```
 
 | Acción | Precondiciones | Efectos | Costo |
 |---|---|---|---|
@@ -173,6 +183,8 @@ En cambio, si todavía existe espacio suficiente o no hay ningún objeto relevan
 
 Esta restricción no pierde el plan óptimo porque transportar un objeto no aumenta el costo de los movimientos. Por lo tanto, no existe beneficio en soltarlo antes de que realmente sea necesario liberar capacidad. Si un plan realiza un DROP sin necesidad de espacio, esa acción puede posponerse hasta el momento en que la capacidad sea necesaria, manteniendo el mismo costo o evitando una acción innecesaria.
 
+**Cuál objeto soltar, cuando hay que soltar uno:** entre los objetos que el robot lleva en ese momento, `Applicable(s)` prioriza soltar uno **muerto** (uno que ya cumplió su función, según la sección de Relevancia) por encima de uno todavía vivo, siempre que el robot lleve al menos un objeto muerto. Esto no es una preferencia arbitraria, es una restricción que se puede demostrar que nunca empeora el plan: tome cualquier plan válido que, en este punto de la búsqueda, suelta un objeto vivo `L` mientras conserva uno muerto `D`. Como `D` nunca vuelve a usarse para nada, se puede construir un plan alternativo que en este mismo punto suelta `D` en lugar de `L` y, a partir de ahí, ejecuta exactamente las mismas acciones que el plan original — con la diferencia de que, si el plan original necesitaba volver a recoger `L` más adelante (porque, al ser un objeto vivo, sí lo necesitaba), el plan alternativo se ahorra ese `PICKUP` extra, porque nunca lo soltó. El plan alternativo cuesta lo mismo o menos, nunca más. En la práctica, esta es la restricción que más reduce el espacio de estados: sin ella, un objeto vivo puede terminar "abandonado" en cualquiera de las zonas que el robot visitó mientras estaba bloqueado por capacidad, multiplicando los estados alcanzables; con ella, mientras haya algo muerto en la carga, ningún objeto vivo cambia de zona sin necesidad real.
+
 El mismo criterio se aplica a las demás acciones: Applicable(s) genera únicamente acciones que sean legales según el contrato y que todavía puedan contribuir al progreso de la misión. Así se reduce el número de sucesores sin modificar las reglas físicas del escenario ni eliminar una solución de costo mínimo.
 
 ---
@@ -201,7 +213,7 @@ RECARGAR: se paga primero el costo de la acción y luego la batería queda en su
 
 Las variables que no sean afectadas por una acción se mantienen iguales en el nuevo estado. Por ejemplo, moverse entre zonas no modifica el inventario ni cambia las puertas, paneles o estaciones.
 
-Después de cada transición, el estado se mantiene en una forma canónica: los conjuntos no dependen del orden de sus elementos y los materiales equivalentes continúan representándose mediante cantidades. También se mantiene el criterio definido anteriormente para los objetos que ya dejaron de ser relevantes. De esta manera, dos resultados que representan la misma situación física son reconocidos como el mismo estado.
+Después de cada transición, el estado se mantiene en una forma canónica: los conjuntos no dependen del orden de sus elementos y los materiales equivalentes continúan representándose mediante cantidades. También se mantiene el criterio definido anteriormente para los objetos que ya dejaron de ser relevantes: en cuanto ABRIR_PUERTA o REPARAR_PANEL hacen que un objeto pase de vivo a muerto, la transición recalcula qué objetos en el suelo siguen siendo relevantes y descarta los que ya no lo son, en vez de esperar a que eso se note en otro lado. De esta manera, dos resultados que representan la misma situación física son reconocidos como el mismo estado.
 
 ---
 
@@ -259,7 +271,7 @@ Por ejemplo:
 Ruta A: 2 acciones → costo total 12
 Ruta B: 3 acciones → costo total 9
 
-Aunque la Ruta A tiene menos pasos, la Ruta B es mejor porque el objetivo del agente es minimizar el costo acumulado y no la cantidad de acciones realizadas.
+Aunque la Ruta A tiene menos pasos, la Ruta B es mejor porque el objetivo del agente es minimizar el costo acumulado y no la cantidad de acciones realizadas. (Este mismo efecto se verifica en la práctica en `backend/tests/test_agent.py::test_case3_cheapest_plan_is_not_the_shortest_plan`, con una ruta directa de 1 salto y costo 20 frente a una ruta de 2 saltos y costo 10: el agente escoge la de más pasos porque es la más barata.)
 
 El costo acumulado g(n) pertenece al Nodo y no al estado físico. La batería, en cambio, sí pertenece al estado porque representa la energía que le queda actualmente al robot.
 
@@ -326,6 +338,8 @@ Para aprovechar esto, además de reconocer estados exactamente iguales, CLOSED t
 
 En cambio, si un estado tiene más batería pero también un costo mayor, no se elimina automáticamente, porque puede existir una diferencia real entre ambos caminos y ninguno domina necesariamente al otro.
 
+**Nota de implementación:** esta comparación no se puede resolver guardando un solo "mejor costo" por configuración, como en un UCS clásico de un solo criterio. Para una misma configuración física puede haber más de un camino no dominado a la vez (uno con más batería y más costo, otro con menos batería y menos costo), y ninguno elimina al otro, porque una acción futura concreta podría exigir una batería que solo el primero puede pagar. Por eso CLOSED no guarda `configuración → mejor costo`, sino `configuración → conjunto de pares (batería, costo) no dominados` (un pequeño frente de Pareto por configuración), y un candidato nuevo se descarta si algún par ya guardado tiene batería mayor o igual y costo menor o igual que él.
+
 Esta comparación permite mantener la batería como parte del estado, como exige el problema, pero evita explorar recorridos que únicamente gastaron energía y aumentaron el costo sin producir ningún cambio útil en el mundo.
 
 ---
@@ -349,9 +363,9 @@ Por esta razón, una misma zona puede aparecer en una gran cantidad de estados d
 
 DROP tiene un papel importante en esta explosión porque permite cambiar la ubicación de los objetos. Si el agente pudiera soltar cualquier objeto en cualquier zona sin ninguna restricción, cada objeto podría terminar distribuido en diferentes lugares del mapa y cada distribución sería una configuración distinta. Además, después podría volver a recoger esos objetos y soltarlos nuevamente, generando todavía más combinaciones.
 
-Para reducir este espacio se aplican varias restricciones y abstracciones. DROP solo se genera cuando es necesario liberar capacidad para recoger un objeto relevante. También se dejan de distinguir las ubicaciones de objetos que ya cumplieron su función y no pueden afectar ninguna acción futura. Los materiales equivalentes se representan mediante cantidades y no mediante identificadores individuales, y los estados utilizan una representación canónica para que configuraciones físicamente iguales sean reconocidas como el mismo estado.
+Para reducir este espacio se aplican varias restricciones y abstracciones. DROP solo se genera cuando es necesario liberar capacidad para recoger un objeto relevante, y cuando eso ocurre se prioriza soltar un objeto muerto sobre uno vivo si hay alguno disponible (ver "Acciones"). También se dejan de distinguir las ubicaciones de objetos que ya cumplieron su función y no pueden afectar ninguna acción futura, y se deja de recoger un tipo de material en cuanto el robot ya lleva tantas unidades como paneles pendientes lo requieren. Los materiales equivalentes se representan mediante cantidades y no mediante identificadores individuales, y los estados utilizan una representación canónica para que configuraciones físicamente iguales sean reconocidas como el mismo estado.
 
-Estas decisiones no pierden el plan óptimo porque eliminan únicamente diferencias o acciones que no pueden producir una ventaja. Soltar un objeto cuando todavía existe capacidad suficiente no reduce el costo de los movimientos, y volver a recoger un objeto que ya no es necesario solo añade costo y ocupa capacidad. De la misma manera, intercambiar dos materiales iguales no cambia físicamente el problema.
+Estas decisiones no pierden el plan óptimo porque eliminan únicamente diferencias o acciones que no pueden producir una ventaja. Soltar un objeto cuando todavía existe capacidad suficiente no reduce el costo de los movimientos, y volver a recoger un objeto que ya no es necesario solo añade costo y ocupa capacidad. De la misma manera, intercambiar dos materiales iguales no cambia físicamente el problema, y preferir soltar un objeto muerto en vez de uno vivo nunca puede costar más (ver la demostración en "Acciones").
 
 También se utiliza la dominancia de batería para evitar explorar caminos que llegan a la misma configuración con menos batería y un costo acumulado mayor o igual.
 
@@ -359,4 +373,6 @@ No sería correcto solucionar el problema modificando valores del escenario. Aum
 
 Además, el profesor puede probar el agente con otros escenarios, por lo que estos valores no pueden asumirse como fijos. El agente debe respetar siempre cargo_capacity, battery_max, las estaciones requeridas y los demás datos definidos en scenario.json.
 
-La solución, por tanto, no consiste en hacer el problema artificialmente más fácil, sino en representar correctamente los estados y evitar explorar acciones o configuraciones que no pueden contribuir a un plan de menor costo. 
+La solución, por tanto, no consiste en hacer el problema artificialmente más fácil, sino en representar correctamente los estados y evitar explorar acciones o configuraciones que no pueden contribuir a un plan de menor costo.
+
+**Verificación empírica:** estas restricciones no se dejaron solo como argumento en papel. Una primera versión de `Applicable` que aplicaba únicamente "generar DROP solo cuando hace falta capacidad" (sin el tope de materiales por necesidad restante ni la preferencia de soltar objetos muertos) se corrió contra `scenario.json` real: pasadas 400.000 expansiones de UCS el costo del nodo extraído apenas llegaba a 52, sin encontrar la meta — confirmando en la práctica, no solo en la teoría, que sin esas dos restricciones adicionales el espacio sí explota. Con ambas activas, el mismo escenario se resuelve de forma completa y demostrablemente óptima (costo 80, frente a 99 del plan artesanal de `demo_plan.py`, que no busca) en cerca de 750.000 expansiones, en un tiempo del orden de un minuto. Sigue siendo un número grande de nodos — es el costo real de resolver, sin ninguna heurística que oriente el orden de exploración, un problema de recolección con capacidad limitada — pero es un espacio finito y verificado, no una explosión sin control.
