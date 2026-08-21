@@ -2,10 +2,15 @@
 
 Python API that exposes `POST /api/solve`.
 
-The default implementation returns a **demo plan** (no search / no AI) so the
-frontend can be tested end-to-end. Students replace the solve handler with
-their search agent. Do not «fix» `scenario.json` (capacity, battery, rooms)
-to make UCS finish: formulate `Applicable` instead. See `project/design.md`.
+`POST /api/solve` is served by `src/agent.py` — a Uniform-Cost Search agent
+(Graph Search, no heuristics; see `project/design.md` for the full
+justification and `agent.py`'s module docstring for the implementation
+notes). It can take on the order of 30–60 seconds to answer against the
+demo `scenario.json`: that is expected, not a hang (see `project/README.md`,
+section 4–5). Do not «fix» `scenario.json` (capacity, battery, rooms) to make
+it faster — formulate `Applicable` instead. `src/demo_plan.py` is kept only
+as the original hand-written plan used by `tests/test_demo_plan.py`; it is
+no longer what `/api/solve` returns.
 
 ## Run
 
@@ -31,5 +36,13 @@ uvicorn main:app --reload --port 8000
 
 ```bash
 cd project/backend
+
+# original hand-written plan (kept as-is, still legal)
 python tests/test_demo_plan.py
+
+# the agent's 5 required validation cases (synthetic scenarios, <1s)
+python tests/test_agent.py
+
+# optional: also run the agent against the real scenario.json end-to-end (~1 min)
+python tests/test_agent.py --slow
 ```
