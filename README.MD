@@ -1,3 +1,4 @@
+# Katherin Juliana Moreno Carvajal
 # Proyecto — Emergency Control
 
 El diseño interno de la IA está en [`design.md`](design.md) (estado, acciones,

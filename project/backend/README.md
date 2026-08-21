@@ -25,6 +25,13 @@ pip install -r requirements.txt
 uvicorn src.main:app --reload --app-dir src --port 8000
 ```
 
+> **Windows:** si `python -m venv .venv` falla con "Python was not found;
+> run without arguments to install from the Microsoft Store..." aunque
+> `py --version` sí funcione, es el alias de la Microsoft Store
+> interceptando `python`. Usa `py -m venv .venv` para crear el entorno
+> virtual; una vez activado, el `python` de adentro del venv funciona
+> normal. Detalle completo en `../README.md`, sección "1–3".
+
 Or from `backend/src`:
 
 ```bash
