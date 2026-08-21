@@ -133,7 +133,7 @@ python tests/test_agent.py
 python tests/test_agent.py --slow
 ```
 
-## Contrato visual vs agente (importante)
+## Contrato visual vs agente
 
 La versión oficial y completa de este contrato (esquema JSON, acciones de `INTERACT`, reglas del mundo y costos) está en `../CONTRATO.md`, que forma parte del enunciado.
 
