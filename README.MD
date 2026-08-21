@@ -1,4 +1,3 @@
-# Katherin Juliana Moreno Carvajal 
 # Proyecto — Emergency Control
 
 El diseño interno de la IA está en [`design.md`](design.md) (estado, acciones,
@@ -33,6 +32,23 @@ python -m venv .venv
 pip install -r requirements.txt
 uvicorn main:app --app-dir src --port 8000
 ```
+
+> **Windows: `python` no se reconoce ("Python was not found; run without
+> arguments to install from the Microsoft Store...")**
+> Esto pasa cuando Python está instalado (por ejemplo, ya tienes
+> `py --version` funcionando) pero el comando `python` está interceptado por
+> el "App execution alias" de la Microsoft Store. Solución: crea el entorno
+> virtual con el lanzador `py` en vez de `python`:
+> ```bash
+> cd project/backend
+> py -m venv .venv
+> .\.venv\Scripts\activate
+> ```
+> Una vez activado el venv, el `python` de *adentro* del entorno virtual sí
+> funciona normalmente — puedes seguir con `pip install -r requirements.txt`
+> y `uvicorn main:app --app-dir src --port 8000` tal cual. (Si prefieres una
+> solución permanente: Configuración > Aplicaciones > Alias de ejecución de
+> aplicaciones > desactiva los alias de `python.exe`/`python3.exe`.)
 
 Comprobar: http://127.0.0.1:8000/api/health debe responder `{"status":"ok"}`.
 
@@ -133,7 +149,7 @@ python tests/test_agent.py
 python tests/test_agent.py --slow
 ```
 
-## Contrato visual vs agente
+## Contrato visual vs agente (importante)
 
 La versión oficial y completa de este contrato (esquema JSON, acciones de `INTERACT`, reglas del mundo y costos) está en `../CONTRATO.md`, que forma parte del enunciado.
 
