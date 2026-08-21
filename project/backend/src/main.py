@@ -9,8 +9,7 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-#from demo_plan import build_demo_plan
-from agent import solve_scenario
+import agent as ucs_agent
 
 app = FastAPI(title="Emergency Control API", version="1.0.0")
 
@@ -42,11 +41,14 @@ def get_scenario() -> dict[str, Any]:
 
 @app.post("/api/solve")
 def solve(scenario: dict[str, Any]) -> dict[str, Any]:
-    """Return a demo plan consistent with the provided scenario.
+    """Solve the mission with the UCS search agent (agent.py).
 
-    Students replace this with a real UCS/search agent. The response contract
-    must remain: solution_found, total_cost, steps[{op, cost, ...}].
+    Kept as a plain `def` (not `async def`) on purpose: FastAPI runs
+    synchronous path functions in a worker thread automatically, so a
+    CPU-bound search that can take tens of seconds does not block the event
+    loop / other requests (e.g. GET /api/health while a solve is running).
+
+    Response contract: solution_found, total_cost, steps[{op, cost, ...}].
     """
     data = scenario if scenario else _load_default_scenario()
-    #return build_demo_plan(data)
-    return solve_scenario(data)
+    return ucs_agent.solve(data)
